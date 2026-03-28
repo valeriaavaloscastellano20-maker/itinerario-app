@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#4facfe">
+<link rel="manifest" href="manifest.json">
+<title>Itinerario PRO MAX</title>
+
+<style>
+body{
+margin:0;
+font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+background:linear-gradient(135deg,#4facfe,#00f2fe);
+color:#222;
+}
+
+.container{
+max-width:500px;
+margin:auto;
+padding:15px;
+}
+
+header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+color:white;
+}
+
+.week{
+background:white;
+border-radius:20px;
+padding:15px;
+margin-top:15px;
+box-shadow:0 10px 25px rgba(0,0,0,0.15);
+}
+
+.task{
+display:flex;
+justify-content:space-between;
+align-items:center;
+background:#f2f2f2;
+padding:8px;
+border-radius:10px;
+margin-bottom:5px;
+transition:0.3s;
+cursor:grab;
+}
+
+.task.done{
+background:#a0e7a0;
+text-decoration:line-through;
+opacity:0.7;
+}
+
+.progress-bar{
+height:8px;
+background:#ddd;
+border-radius:10px;
+overflow:hidden;
+margin:10px 0;
+}
+
+.progress{
+height:100%;
+width:0%;
+background:#4facfe;
+transition:0.3s;
+}
+
+.countdown{
+background:white;
+padding:10px;
+border-radius:15px;
+text-align:center;
+margin-top:10px;
+font-weight:bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<header>
+<h2>✈️ Mi Viaje</h2>
+<button onclick="toggleDark()">🌙</button>
+</header>
+
+<div class="countdown">
+Viaje en: <span id="countdown"></span>
+</div>
+
+<div class="week">
+<h3>Semana 1</h3>
+<div class="progress-bar"><div class="progress" id="progress"></div></div>
+<div id="tasks"></div>
+<input id="newTask" placeholder="Nueva actividad...">
+<button onclick="addTask()">Agregar</button>
+</div>
+
+</div>
+
+<script>
+if ('serviceWorker' in navigator) {
+navigator.serviceWorker.register('service-worker.js');
+}
+
+let data = JSON.parse(localStorage.getItem("itinerarioPro")) || [];
+const tasksContainer = document.getElementById("tasks");
+
+function save(){
+localStorage.setItem("itinerarioPro", JSON.stringify(data));
+updateProgress();
+}
+
+function toggleDark(){
+document.body.classList.toggle("dark");
+}
+
+function addTask(){
+const input = document.getElementById("newTask");
+if(!input.value.trim()) return;
+
+data.push({text:input.value,done:false});
+input.value="";
+save();
+render();
+}
+
+function render(){
+tasksContainer.innerHTML="";
+data.forEach((task,index)=>{
+const div=document.createElement("div");
+div.className="task";
+if(task.done) div.classList.add("done");
+div.draggable=true;
+
+div.innerHTML=`
+<span>${task.text}</span>
+<div>
+<button onclick="toggleDone(${index})">✔</button>
+<button onclick="deleteTask(${index})">✖</button>
+</div>
+`;
+
+tasksContainer.appendChild(div);
+});
+updateProgress();
+}
+
+function toggleDone(index){
+data[index].done=!data[index].done;
+save();
+render();
+}
+
+function deleteTask(index){
+data.splice(index,1);
+save();
+render();
+}
+
+function updateProgress(){
+const done=data.filter(t=>t.done).length;
+const percent=data.length? (done/data.length)*100:0;
+document.getElementById("progress").style.width=percent+"%";
+}
+
+function startCountdown(){
+const tripDate=new Date();
+tripDate.setDate(tripDate.getDate()+30);
+
+setInterval(()=>{
+const now=new Date();
+const diff=tripDate-now;
+const days=Math.floor(diff/(1000*60*60*24));
+document.getElementById("countdown").innerText=days+" días";
+},1000);
+}
+
+startCountdown();
+render();
+
+/* NOTIFICACIONES */
+async function activarNotificaciones(){
+const permiso = await Notification.requestPermission();
+if(permiso==="granted"){
+navigator.serviceWorker.ready.then(reg=>{
+reg.showNotification("✈️ Itinerario listo!",{
+body:"Tu app de viaje ya puede enviarte recordatorios 🔔",
+icon:"https://cdn-icons-png.flaticon.com/512/201/201623.png"
+});
+});
+}
+}
+
+activarNotificaciones();
+</script>
+
+</body>
+</html>
